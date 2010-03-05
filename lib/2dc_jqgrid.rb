@@ -1,4 +1,5 @@
 module JqgridUtilities
+  include	ActionView::Helpers::JavaScriptHelper unless self.respond_to?("escape_javascript")
   def gen_columns(columns)
     # Generate columns data
     col_names = "[" # Labels
@@ -58,8 +59,8 @@ module JqgridUtilities
         options.chop! << %Q/",/
       elsif couple[0] == :data # :data => [Category.all, :id, :title])
         options << %Q/value:"/
-        couple[1].first.each do |v|
-          options << "#{v[couple[1].second]}:#{v[couple[1].third]};"
+        couple[1].first.each do |obj|
+          options << "%s:%s;" % [obj.send(couple[1].second), obj.send(couple[1].third)]
         end
         options.chop! << %Q/",/
       else # :size => 30, :rows => 5, :maxlength => 20, ...
@@ -76,47 +77,29 @@ module JqgridUtilities
     end
     options.chop! << "}"
   end
-end
+end # End JqgridUtilities Module
+
 
 module Jqgrid
-    
+
+    @@jrails_present = false
+    mattr_accessor :jrails_present
+
     def jqgrid_stylesheets
-      css = %Q(<link rel="stylesheet" type="text/css" media="screen" href="/jqgrid/jquery-ui-1.7.2.custom.css" />\n)
-      css << %Q(<link rel="stylesheet" type="text/css" media="screen" href="/jqgrid/ui.jqgrid.css" />)
+      css  = stylesheet_link_tag('jqgrid/jquery-ui-1.7.1.custom.css') + "\n"
+      css << stylesheet_link_tag('jqgrid/ui.jqgrid.css') + "\n"
     end
-    # needed = capture { stylesheet_link_tag '/jqgrid/ui.jqgrid.css' }    
-    #  needed << capture { javascript_include_tag '/jqgrid/js/i18n/grid.locale-en.js' }
-    #  needed << capture { javascript_include_tag '/jqgrid/js/jquery.jqGrid.min.js' }
-    def jqgrid_javascripts(options={})
-      # js = %Q(<script src="/jqgrid/js/jquery.js" type="text/javascript"></script>\n)
-      # js = %Q(<script src="/jqgrid/js/jquery-ui-1.7.2.custom.min.js" type="text/javascript"></script>\n)
-      js = %Q(<script src="/jqgrid/js/jquery.layout.js" type="text/javascript"></script>\n)
-      js << %Q(<script src="/jqgrid/js/i18n/grid.locale-en.js" type="text/javascript"></script>\n)
-      if options[:debug]
-        js << %Q(<script src="/jqgrid/js/for-debug/JsonXml.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.base.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.celledit.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.common.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.custom.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.formedit.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.import.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.inlinedit.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.loader.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.postext.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.setcolumns.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.subgrid.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.tbltogrid.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/grid.treegrid.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/jqDnR.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/jqModal.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/jquery.fmatter.js" type="text/javascript"></script>\n)
-        js << %Q(<script src="/jqgrid/js/for-debug/jquery.searchFilter.js" type="text/javascript"></script>\n)
-      else
-        js << %Q(<script src="/jqgrid/js/jquery.jqGrid.min.js" type="text/javascript"></script>\n)
-      end
-      js << %Q(<script src="/jqgrid/js/jquery.tablednd.js" type="text/javascript"></script>\n)
-      js << %Q(<script src="/jqgrid/js/jquery.contextmenu.js" type="text/javascript"></script>)                    
-      css = capture { stylesheet_link_tag 'jqgrid/ui.jqgrid' }    
+
+    def jqgrid_javascripts
+      locale = I18n.locale rescue :en
+      js =  ''
+      js << javascript_include_tag('jqgrid/jquery.min.js') + "\n" unless Jqgrid.jrails_present
+      js << javascript_include_tag('jqgrid/jquery-ui-1.7.1.custom.min.js') + "\n"
+      js << javascript_include_tag('jqgrid/jquery.layout.js') + "\n"
+      js << javascript_include_tag("jqgrid/i18n/grid.locale-#{locale}.js") + "\n"
+      js << javascript_include_tag('jqgrid/jquery.jqGrid.min.js') + "\n"
+      # js << javascript_include_tag('jqgrid/jquery.tablednd.js') + "\n"
+      # js << javascript_include_tag('jqgrid/jquery.contextmenu.js') + "\n"
     end
 
     def jqgrid(title, id, action, columns = [], options = {})
@@ -147,7 +130,7 @@ module Jqgrid
       end
       
       options[:error_handler_return_value] = (options[:error_handler] == 'null') ? 'true;' : options[:error_handler]
-      edit_button = (options[:edit] == 'true' && options[:inline_edit] == 'false').to_s
+      edit_button = (options[:edit].to_s == 'true' && options[:inline_edit].to_s != 'true').to_s
 
       # Generate columns data
       col_names, col_model = gen_columns(columns)
@@ -245,7 +228,7 @@ module Jqgrid
       # Enable inline editing
       # When a row is selected, all fields are transformed to input types
       editable = ""
-      if options[:edit] && options[:inline_edit] == 'true'
+      if options[:edit].to_s == 'true' && options[:inline_edit].to_s == 'true'
         editable = %Q/
         onSelectRow: function(id){ 
           if(id && id!==lastsel){ 
@@ -280,8 +263,6 @@ module Jqgrid
           suboptions[key] = value.to_s
           suboptions
         end
-        
-        cut
         
         subgrid_inline_edit = ""
         if options[:subgrid][:inline_edit] == true
@@ -378,7 +359,9 @@ module Jqgrid
             custom_buttons += %Q^    
                 onClickButton: function(){ 
                                 var selected_ids = jQuery("##{id}").getGridParam("#{get_ids_call}")
-                                // no check for null selected_ids as someone may want an Add button or something similar
+                                #{ 
+                                #no check for null selected_ids as someone may want an Add button or something similar
+                                }
                                 #{button_properties_hash[:function_name]}(selected_ids);
                               }
               })
@@ -391,50 +374,50 @@ module Jqgrid
       %Q(
     <!--  <link rel="stylesheet" type="text/css" media="screen" href="/stylesheets/jqgrid/ui.jqgrid.css" /> -->
         <script type="text/javascript">
-        var lastsel;
-        var gridimgpath = '/images/jqgrid'; 
-        jQuery(document).ready(function(){
-        var mygrid#{id.camelcase} = jQuery("##{id}").jqGrid({
-            url:'#{action}?q=1',
-            editurl:'#{options[:edit_url]}',
-            datatype: "json",
-            colNames:#{col_names},
-            colModel:#{col_model},
-            pager: '##{id}_pager',
-            rowNum:#{options[:rows_per_page]},
-            
-            rowList:[10,25,50,100],
-            imgpath: '/images/jqgrid',
-            sortname: '#{options.delete(:sort_column)}',
-            viewrecords: true,
-            height: '#{options[:height]}',
-            topinfo: '#{options[:topinfo]}',
-            sortorder: '#{options[:sort_order]}',
-            gridview: #{options[:gridview]},
-            scrollrows: true,
-            autowidth: #{options[:autowidth]},
-            rownumbers: #{options[:rownumbers]},
-            #{options[:width].blank? ? '' : "width:" + "'" + options[:width].to_s + "'" + ',' } 
-            #{post_data}
-            #{multiselect}
-            #{masterdetails}
-            #{grid_loaded}
-            #{direct_link}
-            #{editable}
-            #{subgrid_enabled}
-            #{subgrid}
-            caption: "#{title}"
-        }).navGrid('##{id}_pager',
-        {edit:#{edit_button},add:#{options[:add]},del:#{options[:delete]},search:false,refresh:true},
-        {afterSubmit:function(r,data){return #{options[:error_handler_return_value]}(r,data,'edit');}},
-        {afterSubmit:function(r,data){return #{options[:error_handler_return_value]}(r,data,'add');}},
-        {afterSubmit:function(r,data){return #{options[:error_handler_return_value]}(r,data,'delete');}})
-        #{custom_buttons}
-        #{search}
-        #{multihandler}
-        #{selection_link}
-        #{filter_toolbar}
-        });
+          var lastsel;
+          #{'jQuery(document).ready(function(){' unless options[:omit_ready]=='true'}
+          var mygrid#{id.camelcase} = jQuery("##{id}").jqGrid({
+              url:'#{action}?q=1',
+              editurl:'#{options[:edit_url]}',
+              datatype: "json",
+              colNames:#{col_names},
+              colModel:#{col_model},
+              pager: '##{id}_pager',
+              rowNum:#{options[:rows_per_page]},
+              rowList:[10,25,50,100],
+              imgpath: '/images/jqgrid',
+              sortname: '#{options[:sort_column]}',
+              viewrecords: true,
+              height: #{options[:height]},
+              sortorder: '#{options[:sort_order]}',
+              gridview: #{options[:gridview]},
+              scrollrows: true,
+              autowidth: #{options[:autowidth]},
+              rownumbers: #{options[:rownumbers]},
+              topinfo: '#{options[:topinfo]}',
+              #{options[:width].blank? ? '' : "width:" + "'" + options[:width].to_s + "'" + ',' }
+              #{post_data} 
+              #{multiselect}
+              #{masterdetails}
+              #{grid_loaded}
+              #{direct_link}
+              #{editable}
+              #{subgrid_enabled}
+              #{subgrid}
+              caption: "#{title}"
+            })
+            .navGrid('##{id}_pager',
+              {edit:#{edit_button},add:#{options[:add]},del:#{options[:delete]},search:false,refresh:true},
+              {afterSubmit:function(r,data){return #{options[:error_handler_return_value]}(r,data,'edit');}},
+              {afterSubmit:function(r,data){return #{options[:error_handler_return_value]}(r,data,'add');}},
+              {afterSubmit:function(r,data){return #{options[:error_handler_return_value]}(r,data,'delete');}}
+            )
+            #{custom_buttons}
+            #{search}
+            #{multihandler}
+            #{selection_link}
+            #{filter_toolbar}
+          #{'})' unless options[:omit_ready]=='true'};
         </script>
         <table id="#{id}" class="scroll" cellpadding="0" cellspacing="0"></table>
         <div id="#{id}_pager" class="scroll" style="text-align:center;"></div>
@@ -444,162 +427,160 @@ module Jqgrid
     private
     
     include JqgridUtilities
-end
 
+end # End Jqgrid module
 
-
-
-  module JqgridJson
-    def to_jqgrid_json(attributes, current_page, per_page, total, options={})
-      json = %Q({"page":"#{current_page}","total":#{total/per_page.to_i+1},"records":"#{total}")
-      if total > 0
-        json << %Q(,"rows":[)
-        each do |elem|
-          elem.id ||= index(elem)
-          json << %Q({"id":"#{elem.id}","cell":[)
-          couples = elem.attributes.symbolize_keys
-          attributes.each do |atr|
-            value = get_atr_value(elem, atr, couples, options)
-            json << %Q("#{value}",)
-          end
-          json.chop! << "]},"
+module JqgridJson
+  def to_jqgrid_json(attributes, current_page, per_page, total, options={})
+    json = %Q({"page":"#{current_page}","total":#{total/per_page.to_i+1},"records":"#{total}")
+    if total > 0
+      json << %Q(,"rows":[)
+      each do |elem|
+        elem.id ||= index(elem)
+        json << %Q({"id":"#{elem.id}","cell":[)
+        couples = elem.attributes.symbolize_keys
+        attributes.each do |atr|
+          value = get_atr_value(elem, atr, couples, options)
+          value = escape_javascript(value) if (value and value.is_a?(String))
+          json << %Q("#{value}",)
         end
-        json.chop! << "]}"
-      else
-        json << "}"
+        json.chop! << "]},"
       end
-    end
-
-    private
-
-    def get_atr_value(elem, atr, couples, options)
-      if atr.instance_of?(String) && atr.include?('.')
-        value = get_nested_atr_value(elem, atr.split('.').reverse) 
-      else
-        value = couples[atr]
-        value = elem.send(atr.to_sym) if value.blank? && elem.respond_to?(atr) # Required for virtual attributes
-      end
-      value = (value ? options[:true_text] || "Yes" : options[:false_text] || "No") if value.instance_of?(TrueClass) || value.instance_of?(FalseClass)
-      value = '' if atr == :blank_field
-      value
-    end
-
-    def get_nested_atr_value(elem, hierarchy)
-      return nil if hierarchy.size == 0
-      atr = hierarchy.pop
-      raise ArgumentError, "#{atr} doesn't exist on #{elem.inspect}" unless elem.respond_to?(atr)
-      nested_elem = elem.send(atr)
-      return "" if nested_elem.nil?
-      value = get_nested_atr_value(nested_elem, hierarchy)
-      value.nil? ? nested_elem : value
+      json.chop! << "]}"
+    else
+      json << "}"
     end
   end
 
+  private
 
-  module ApplicationHelper
-    def jqgrid_restful_add_edit_delete_buttons(options={})
-      options[:width] ||= 600
+  def get_atr_value(elem, atr, couples, options)
+    if atr.to_s.include?('.')
+      value = get_nested_atr_value(elem, atr.to_s.split('.').reverse) 
+    else
+      value = couples[atr]
+      value = elem.send(atr.to_sym) if value.blank? && elem.respond_to?(atr) # Required for virtual attributes
+    end
+    value = (value ? options[:true_text] || "Yes" : options[:false_text] || "No") if value.instance_of?(TrueClass) || value.instance_of?(FalseClass)
+    value = '' if atr == :blank_field
+    value
+  end
+  
+  def get_nested_atr_value(elem, hierarchy)
+    return nil if hierarchy.size == 0
+    atr = hierarchy.pop
+    raise ArgumentError, "#{atr} doesn't exist on #{elem.inspect}" unless elem.respond_to?(atr)
+    nested_elem = elem.send(atr)
+    return "" if nested_elem.nil?
+    value = get_nested_atr_value(nested_elem, hierarchy)
+    value.nil? ? nested_elem : value
+  end
+end # End JqgridJson module
 
-      events = ","
-      events << %Q(onInitializeForm: #{options[:on_initialize_form] + ","}) unless options[:on_initialize_form].blank?
-      events << %Q(beforeShowForm: #{options[:before_show_form] + ","}) unless options[:before_show_form].blank?
-      events << %Q(editData: #{get_sub_options(options[:edit_data]) + ","}) unless options[:edit_data].blank?
-      events.chomp!(",")
+module ApplicationHelper
+  def jqgrid_restful_add_edit_delete_buttons(options={})
+    options[:width] ||= 600
 
-      options[:add_function] ||= %Q(
-  		jQuery("##{options[:div_object]}").editGridRow("new",
-  			{	mtype:'POST',
-  				closeAfterAdd:true,
-  				width:#{options[:width]},
-  				reloadAfterSubmit:true,
-  				afterSubmit:checkForAndDisplayErrors,
-  				url:'#{ options[:base_path] }' + '.json?' + (window.rails_authenticity_token ? '&authenticity_token='+encodeURIComponent(window.rails_authenticity_token) : '')
-  				#{events}
-  			}
-  			);
-      )
+    events = ","
+    events << %Q(onInitializeForm: #{options[:on_initialize_form] + ","}) unless options[:on_initialize_form].blank?
+    events << %Q(beforeShowForm: #{options[:before_show_form] + ","}) unless options[:before_show_form].blank?
+    events << %Q(editData: #{get_sub_options(options[:edit_data]) + ","}) unless options[:edit_data].blank?
+    events.chomp!(",")
 
-      options[:edit_function] ||= %Q(
-     	 	jQuery("##{options[:div_object]}").editGridRow(id,
-     	 		{	mtype:'PUT',
-     	 			closeAfterEdit:true,
-     	 			width:#{options[:width]},
-     				afterSubmit:checkForAndDisplayErrors,
-     	 			reloadAfterSubmit:true,
-     	 			url:'#{ options[:base_path] }/' + id + '.json?' + (window.rails_authenticity_token ? '&authenticity_token='+encodeURIComponent(window.rails_authenticity_token) : '')
-    				#{events}
-     			}
-     			);
-      )
-      options[:delete_function] ||= %Q(
-        jQuery("##{options[:div_object]}").delGridRow(id,
-      		{	mtype:'DELETE',
-      			closeAfterEdit:true,
-      			reloadAfterSubmit:true,
-      			afterSubmit:checkForAndDisplayErrors,
-      			url:'#{ options[:base_path] }/' + id + '.json?' + (window.rails_authenticity_token ? '&authenticity_token='+encodeURIComponent(window.rails_authenticity_token) : '')
-      		});
-    		)
-
-      options[:copy_function] ||= %Q(
-     	 	jQuery("##{options[:div_object]}").delGridRow(id,
-     	 		{	mtype:'POST',
-     	 			closeAfterEdit:true,
-     	 			width:#{options[:width]},
-     				afterSubmit:checkForAndDisplayErrors,
-     	 			reloadAfterSubmit:true,
-            caption: "Copy",
-            msg: "Copy selected #{options[:name].singularize.camelcase}?",
-            bSubmit: "Copy",
-            bCancel: "Cancel",
-     	 			url:'#{ options[:base_path] }/' + id + '/copy.json?' + (window.rails_authenticity_token ? '&authenticity_token='+encodeURIComponent(window.rails_authenticity_token) : '')
-    				#{events}
-     			}
-     			);
-      )
-
-    	options[:get_page_for_selected_id] ||= %Q('#{options[:base_path]}')
-
-      return "" if options[:name].blank? || options[:base_path].blank? || options[:div_object].blank?
-      %Q(
-        <script type="text/javascript">
-        	function add#{options[:name].singularize.camelcase}() {
-        	  #{options[:add_function]}
-        	};
-        	function edit#{options[:name].singularize.camelcase}(id){
-        	 if( id != null )
-             #{options[:edit_function]}
-        	 else
-        	 	alert("Please select a #{options[:name].singularize.downcase} to edit.");
-        	 };
-
-        	function delete#{options[:name].singularize.camelcase}(id){
-        		if ( id != null )
-              #{options[:delete_function]}
-        		else
-        			alert("Please select a #{options[:name].singularize.downcase} to delete");
-        		}
-      		function copy#{options[:name].singularize.camelcase}(id){
-        		if ( id != null )
-              #{options[:copy_function]}
-        		else
-        			alert("Please select a #{options[:name].singularize.downcase} to copy");
-        		}	
-        	function getPage(id){
-        	  if ( id != null )
-              document.location=#{ options[:get_page_for_selected_id] };
-        		else
-        			alert("Please select a #{options[:name].singularize.downcase}");
-        		}
-
-        </script>
+    options[:add_function] ||= %Q(
+		jQuery("##{options[:div_object]}").editGridRow("new",
+			{	mtype:'POST',
+				closeAfterAdd:true,
+				width:#{options[:width]},
+				reloadAfterSubmit:true,
+				afterSubmit:checkForAndDisplayErrors,
+				url:'#{ options[:base_path] }' + '.json?' + (window.rails_authenticity_token ? '&authenticity_token='+encodeURIComponent(window.rails_authenticity_token) : '')
+				#{events}
+			}
+			);
     )
-    end
-    
-    private
-    
-    include JqgridUtilities
+
+    options[:edit_function] ||= %Q(
+   	 	jQuery("##{options[:div_object]}").editGridRow(id,
+   	 		{	mtype:'PUT',
+   	 			closeAfterEdit:true,
+   	 			width:#{options[:width]},
+   				afterSubmit:checkForAndDisplayErrors,
+   	 			reloadAfterSubmit:true,
+   	 			url:'#{ options[:base_path] }/' + id + '.json?' + (window.rails_authenticity_token ? '&authenticity_token='+encodeURIComponent(window.rails_authenticity_token) : '')
+  				#{events}
+   			}
+   			);
+    )
+    options[:delete_function] ||= %Q(
+      jQuery("##{options[:div_object]}").delGridRow(id,
+    		{	mtype:'DELETE',
+    			closeAfterEdit:true,
+    			reloadAfterSubmit:true,
+    			afterSubmit:checkForAndDisplayErrors,
+    			url:'#{ options[:base_path] }/' + id + '.json?' + (window.rails_authenticity_token ? '&authenticity_token='+encodeURIComponent(window.rails_authenticity_token) : '')
+    		});
+  		)
+
+    options[:copy_function] ||= %Q(
+   	 	jQuery("##{options[:div_object]}").delGridRow(id,
+   	 		{	mtype:'POST',
+   	 			closeAfterEdit:true,
+   	 			width:#{options[:width]},
+   				afterSubmit:checkForAndDisplayErrors,
+   	 			reloadAfterSubmit:true,
+          caption: "Copy",
+          msg: "Copy selected #{options[:name].singularize.camelcase}?",
+          bSubmit: "Copy",
+          bCancel: "Cancel",
+   	 			url:'#{ options[:base_path] }/' + id + '/copy.json?' + (window.rails_authenticity_token ? '&authenticity_token='+encodeURIComponent(window.rails_authenticity_token) : '')
+  				#{events}
+   			}
+   			);
+    )
+
+  	options[:get_page_for_selected_id] ||= %Q('#{options[:base_path]}')
+
+    return "" if options[:name].blank? || options[:base_path].blank? || options[:div_object].blank?
+    %Q(
+      <script type="text/javascript">
+      	function add#{options[:name].singularize.camelcase}() {
+      	  #{options[:add_function]}
+      	};
+      	function edit#{options[:name].singularize.camelcase}(id){
+      	 if( id != null )
+           #{options[:edit_function]}
+      	 else
+      	 	alert("Please select a #{options[:name].singularize.downcase} to edit.");
+      	 };
+
+      	function delete#{options[:name].singularize.camelcase}(id){
+      		if ( id != null )
+            #{options[:delete_function]}
+      		else
+      			alert("Please select a #{options[:name].singularize.downcase} to delete");
+      		}
+    		function copy#{options[:name].singularize.camelcase}(id){
+      		if ( id != null )
+            #{options[:copy_function]}
+      		else
+      			alert("Please select a #{options[:name].singularize.downcase} to copy");
+      		}	
+      	function getPage(id){
+      	  if ( id != null )
+            document.location=#{ options[:get_page_for_selected_id] };
+      		else
+      			alert("Please select a #{options[:name].singularize.downcase}");
+      		}
+
+      </script>
+    )
   end
+
+  private
+
+  include JqgridUtilities
+end
 
 
 module JqgridNotifiable
