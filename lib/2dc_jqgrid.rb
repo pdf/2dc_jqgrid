@@ -310,7 +310,7 @@ module Jqgrid
       options = ","
       column.except(:field, :label).each do |couple|
 				if %w(editoptions formoptions searchoptions editrules formatoptions).include?(couple[0].to_s)
-					options << "#{couple[0].to_s}:#{get_sub_options(couple(1))},"
+					options << "#{couple[0].to_s}:#{get_sub_options(couple[1])},"
 				else
           if couple[1].class == String
             options << "#{couple[0]}:'#{couple[1]}',"
