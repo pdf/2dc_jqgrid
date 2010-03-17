@@ -4,20 +4,27 @@ module Jqgrid
     mattr_accessor :jrails_present
 
     def jqgrid_stylesheets
-      css  = stylesheet_link_tag('jqgrid/jquery-ui-1.7.1.custom.css') + "\n"
+			css = ""
+      css << stylesheet_link_tag('jqgrid/jquery-ui-1.7.1.custom.css') + "\n" unless Jqgrid.jrails_present
       css << stylesheet_link_tag('jqgrid/ui.jqgrid.css') + "\n"
     end
 
     def jqgrid_javascripts
       locale = I18n.locale rescue :en
-      js =  ''
-      js << javascript_include_tag('jqgrid/jquery.js') + "\n" unless Jqgrid.jrails_present
-      js << javascript_include_tag('jqgrid/jquery-ui-1.7.1.custom.min.js') + "\n"
-      js << javascript_include_tag('jqgrid/jquery.layout.js') + "\n"
-      js << javascript_include_tag("jqgrid/i18n/grid.locale-#{locale}.js") + "\n"
-      js << javascript_include_tag('jqgrid/jquery.jqGrid.min.js') + "\n"
-      js << javascript_include_tag('jqgrid/jquery.tablednd.js') + "\n"
-      js << javascript_include_tag('jqgrid/jquery.contextmenu.js') + "\n"
+
+			js = []
+			unless Jqgrid.jrails_present
+				js << 'jquery'
+				js << 'jquery-ui-1.7.1.custom.min'
+			end
+			js << 'jquery.layout'
+			js << "i18n/grid.locale-#{locale}"
+			js << "jquery.jqGrid.min"
+			js << "jquery.tablednd"
+			js << "jquery.contextmenu"
+			js << "jqPersist"
+			
+			javascript_include_tag js.map {|f| "jqgrid/#{f}.js"}, :cache => "_jqgrid.js"
     end
 
     def jqgrid(title, id, action, columns = [], options = {})
@@ -135,6 +142,15 @@ module Jqgrid
         },
         /
       end
+
+			options[:serializeGridData] = :persistGridState if options[:persistGridState]
+			
+			other_events = ""
+			%w(loadBeforeSend loadCompleted serializeGridData).each do |event|
+				if options[event.to_sym].present?
+					other_events << "#{event}: #{options[event.to_sym]}, "
+				end
+			end
 
       # Enable inline editing
       # When a row is selected, all fields are transformed to input types
@@ -267,6 +283,7 @@ module Jqgrid
               #{multiselect}
               #{masterdetails}
               #{grid_loaded}
+							#{other_events}
               #{direct_link}
               #{editable}
               #{subgrid_enabled}
