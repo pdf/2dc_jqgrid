@@ -81,7 +81,7 @@ end # End JqgridUtilities Module
 
 
 module Jqgrid
-
+    include JqgridUtilities
     @@jrails_present = false
     mattr_accessor :jrails_present
 
@@ -431,6 +431,7 @@ module Jqgrid
 end # End Jqgrid module
 
 module JqgridJson
+  include JqgridUtilities
   def to_jqgrid_json(attributes, current_page, per_page, total, options={})
     json = %Q({"page":"#{current_page}","total":#{total/per_page.to_i+1},"records":"#{total}")
     if total > 0
