@@ -2,9 +2,11 @@ require 'rubygems'
 require 'spec'
 require 'active_support'
 require 'action_view' # ugly but temporary
+require 'ruby-debug'
 
 require File.dirname(__FILE__) + '/../lib/2dc_jqgrid'
 Array.send :include, JqgridJson
+Array.send :include, ActionView::Helpers::JavaScriptHelper
 include Jqgrid
 
 class User
@@ -135,7 +137,7 @@ describe "jqgrid helper method" do
     it "should generate a valid data model" do
       @grid.include?("datatype: \"json\"").should be_true
       @grid.include?(%Q(colNames:['ID','Username','Email','Password'])).should be_true
-      @grid.include?(%Q(colModel:[{name:'id', index:'id',width:35},{name:'username', index:'username'},{name:'email', index:'email'},{name:'password', index:'password'}])).should be_true
+      @grid.include?(%Q(colModel:[{name:'id', index:'id',width:35, hidden:false},{name:'username', index:'username', hidden:false},{name:'email', index:'email', hidden:false},{name:'password', index:'password', hidden:false}])).should be_true
     end
     
   end
@@ -228,7 +230,7 @@ describe "jqgrid helper method" do
       @grid.include?("subGrid:true").should be_true
       @grid.include?("subGridRowExpanded").should be_true
       @grid.include?(%Q(url:"/users/pets?q=2)).should be_true
-      @grid.include?("colModel: [{name:'id', index:'id',width:35},{name:'name', index:'name'}]").should be_true
+      @grid.include?("colModel: [{name:'id', index:'id',width:35, hidden:false},{name:'name', index:'name', hidden:false}]").should be_true
     end
     
     it "shoud be possible to add subgrids with CRUD operations" do
@@ -269,7 +271,33 @@ describe "jqgrid helper method" do
     	],
     	{ :add => true, :edit => true, :inline_edit => true, :delete => true, :edit_url => "/users/post_data" }
     )
-    @grid.include?(%Q(olModel:[{name:'id', index:'id',width:35,resizable:false},{name:'pseudo', index:'pseudo',editoptions:{size:18},editable:true,editrules:{required:true},formoptions:{rowpos:1,elmprefix:\"(*)&nbsp;&nbsp;\"}},{name:'firstname', index:'firstname',editoptions:{size:22},editable:true,formoptions:{rowpos:4,label:\"A label\"}},{name:'lastname', index:'lastname',editoptions:{size:22},editable:true,formoptions:{rowpos:5}},{name:'email', index:'email',editoptions:{size:22},editable:true,formoptions:{rowpos:3}},{name:'role', index:'role',editoptions:{value:\"admin:admin;player:player;defender:defender\",size:22},editable:true,formoptions:{rowpos:2},stype:'select',edittype:'select'}])).should be_true
+    @grid.include?(%Q(olModel:[{name:'id', index:'id',width:35,resizable:false, hidden:false},{name:'pseudo', index:'pseudo',editable:true,formoptions:{rowpos:1,elmprefix:\"(*)&nbsp;&nbsp;\"},editoptions:{size:18},editrules:{required:true}, hidden:false},{name:'firstname', index:'firstname',editable:true,formoptions:{rowpos:4,label:\"A label\"},editoptions:{size:22}, hidden:false},{name:'lastname', index:'lastname',editable:true,formoptions:{rowpos:5},editoptions:{size:22}, hidden:false},{name:'email', index:'email',editable:true,formoptions:{rowpos:3},editoptions:{size:22}, hidden:false},{name:'role', index:'role',editable:true,stype:'select',edittype:'select',formoptions:{rowpos:2},editoptions:{value:\"admin:admin;player:player;defender:defender\",size:22}, hidden:false}])).should be_true
   end
   
+  it "should be possible to add many custom buttons" do
+    @grid = jqgrid_shortcut({ :add => false, :edit => true, :inline_edit => false, :delete => false, :edit_url => "/users/post_data",
+            :custom_buttons => [
+                    {
+    	  							:function_name => 'addWidget',
+    	  							:caption => 'this is my add caption',
+    	  							:title => "Add Widget", 
+  	        					:icon => "ui-icon-plusthick",
+  	  							},
+  	  							{
+    	  							:function_name => 'deleteWidget',
+    	  							:caption => nil,
+    	  							:title => "Delete Selected Widget", 
+	        						:icon => "ui-icon-trash",
+  	  							}
+  	  						]})
+  	 @grid.include?("{edit:true,add:false,del:false,search:false,refresh:true}").should be_true
+  	 (@grid =~ /\.navButtonAdd\(\n\s*'#users_pager',\n\s*\{\n\s*caption:\"this is my add caption\",\n\s*title:\"Add Widget\", \n\s*buttonicon:\"ui-icon-plusthick\",\s*\n\s*onClickButton: function\(\)\{ \n\s*var selected_ids = jQuery\(\"#users\"\).getGridParam\(\"selrow\"\)\n\s*\n\s*addWidget\(selected_ids\)\;\n\s*\}\n\s*\}\)\n\s*/).should be_true
+  	 (@grid =~ /.navButtonAdd\(\n\s*'#users_pager',\n\s*\{\n\s*caption:\"\",\n\s*title:\"Delete Selected Widget\", \n\s*buttonicon:\"ui-icon-trash\",\s*\n\s*onClickButton: function\(\)\{ \n\s*var selected_ids = jQuery\(\"#users\"\).getGridParam\(\"selrow\"\)\n\s*\n\s*deleteWidget\(selected_ids\);\n\s*\}\n\s*\}\)\n\s*\n\s*/).should be_true
+  	 
+  end
+  
+  it "should be possible to append data to each request" do
+     @grid = jqgrid_shortcut(:post_data=>{'_search' => 1, :myfield => 2})
+     @grid.include?("postData: {_search:1,myfield:2}").should be_true
+  end
 end
