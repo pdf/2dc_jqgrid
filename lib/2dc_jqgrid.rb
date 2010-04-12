@@ -114,6 +114,7 @@ module Jqgrid
           :gridview            => 'false',
           :error_handler       => 'null',
           :inline_edit_handler => 'null',
+          :double_click_handler => 'null',
           :add                 => 'false',
           :delete              => 'false',
           :search              => 'true',
@@ -214,6 +215,17 @@ module Jqgrid
         },/
       end
 
+      # doubleclick
+      double_click = ""
+      if options[:double_click_handler].present?
+        double_click = %Q/
+        ondblClickRow: function(id){ 
+          #{options[:double_click_handler]}(id);
+        },
+        / 
+      end
+      
+      
       # Enable grid_loaded callback
       # When data are loaded into the grid, call the Javascript function options[:grid_loaded] (defined by the user)
       grid_loaded = ""
@@ -401,6 +413,7 @@ module Jqgrid
               #{masterdetails}
               #{grid_loaded}
               #{direct_link}
+              #{double_click}
               #{editable}
               #{subgrid_enabled}
               #{subgrid}
