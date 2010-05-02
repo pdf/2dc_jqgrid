@@ -484,7 +484,7 @@ module JqgridJson
 
   private
   
-  def get_atr_value(elem, atr, couples)
+  def get_atr_value(elem, atr, couples, options={})
     if atr.instance_of?(String) && atr.to_s.include?('.')
       value = get_nested_atr_value(elem, atr.to_s.split('.').reverse) 
     else
