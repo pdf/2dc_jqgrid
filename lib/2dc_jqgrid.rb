@@ -117,7 +117,6 @@ module Jqgrid
           :rows_per_page       => '10',
           :sort_column         => '',
           :sort_order          => '',
-          :height              => '150',
           :gridview            => 'false',
           :error_handler       => 'null',
           :inline_edit_handler => 'null',
@@ -416,13 +415,13 @@ module Jqgrid
               imgpath: '/images/jqgrid',
               sortname: '#{options[:sort_column]}',
               viewrecords: true,
-              height: #{options[:height]},
               sortorder: '#{options[:sort_order]}',
               gridview: #{options[:gridview]},
               scrollrows: true,
               autowidth: #{options[:autowidth]},
               rownumbers: #{options[:rownumbers]},
               topinfo: '#{options[:topinfo]}',
+              #{options[:height].blank? ? '' : "height:" + "'" + options[:height].to_s + "'" + ',' }
               #{options[:width].blank? ? '' : "width:" + "'" + options[:width].to_s + "'" + ',' }
               #{post_data} 
               #{multiselect}
